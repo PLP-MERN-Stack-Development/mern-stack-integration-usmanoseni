@@ -1,10 +1,9 @@
 // api.js - API service for making requests to the backend
-
 import axios from 'axios';
 
 // Create axios instance with base URL
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:5000/api',
+  baseURL: import.meta.env.VITE_API_URI ,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,10 +40,13 @@ api.interceptors.response.use(
 // Post API services
 export const postService = {
   // Get all posts with optional pagination and filters
-  getAllPosts: async (page = 1, limit = 10, category = null) => {
-    let url = `/posts?page=${page}&limit=${limit}`;
+  getAllPosts: async (page = 1, limit = 10, category = null, q = null) => {
+    let url = `/api/posts?page=${page}&limit=${limit}`;
     if (category) {
       url += `&category=${category}`;
+    }
+    if (q) {
+      url += `&q=${encodeURIComponent(q)}`;
     }
     const response = await api.get(url);
     return response.data;
@@ -52,37 +54,47 @@ export const postService = {
 
   // Get a single post by ID or slug
   getPost: async (idOrSlug) => {
-    const response = await api.get(`/posts/${idOrSlug}`);
+    const response = await api.get(`/api/posts/${idOrSlug}`);
     return response.data;
   },
 
   // Create a new post
   createPost: async (postData) => {
-    const response = await api.post('/posts', postData);
+    // If postData is FormData, remove the default Content-Type header
+    const config = postData instanceof FormData ? {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    } : {};
+    const response = await api.post('/api/posts', postData, config);
     return response.data;
   },
 
   // Update an existing post
   updatePost: async (id, postData) => {
-    const response = await api.put(`/posts/${id}`, postData);
+    // Support sending FormData for file updates
+    const config = postData instanceof FormData ? {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    } : {};
+    const response = await api.put(`/api/posts/${id}`, postData, config);
     return response.data;
   },
 
   // Delete a post
   deletePost: async (id) => {
-    const response = await api.delete(`/posts/${id}`);
+    const response = await api.delete(`/api/posts/${id}`);
     return response.data;
   },
 
   // Add a comment to a post
   addComment: async (postId, commentData) => {
-    const response = await api.post(`/posts/${postId}/comments`, commentData);
+    const response = await api.post(`/api/posts/${postId}/comments`, commentData);
     return response.data;
   },
 
   // Search posts
   searchPosts: async (query) => {
-    const response = await api.get(`/posts/search?q=${query}`);
+    const response = await api.get(`/api/posts/search?q=${query}`);
     return response.data;
   },
 };
@@ -91,13 +103,13 @@ export const postService = {
 export const categoryService = {
   // Get all categories
   getAllCategories: async () => {
-    const response = await api.get('/categories');
+    const response = await api.get('/api/categories');
     return response.data;
   },
 
   // Create a new category
   createCategory: async (categoryData) => {
-    const response = await api.post('/categories', categoryData);
+    const response = await api.post('/api/categories', categoryData);
     return response.data;
   },
 };
@@ -106,13 +118,13 @@ export const categoryService = {
 export const authService = {
   // Register a new user
   register: async (userData) => {
-    const response = await api.post('/auth/register', userData);
+    const response = await api.post('/api/auth/register', userData);
     return response.data;
   },
 
   // Login user
   login: async (credentials) => {
-    const response = await api.post('/auth/login', credentials);
+    const response = await api.post('/api/auth/login', credentials);
     if (response.data.token) {
       localStorage.setItem('token', response.data.token);
       localStorage.setItem('user', JSON.stringify(response.data.user));

@@ -8,9 +8,9 @@ const dotenv = require('dotenv');
 const path = require('path');
 
 // Import routes
-const postRoutes = require('./routes/posts');
-const categoryRoutes = require('./routes/categories');
-const authRoutes = require('./routes/auth');
+const postRoutes = require('./router/postRouter');
+const categoryRoutes = require('./router/categoryRouter');
+const authRoutes = require('./router/authRouter');
 
 // Load environment variables
 dotenv.config();
@@ -19,13 +19,30 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Middleware
-app.use(cors());
+// CORS configuration
+const allowedOrigins = process.env.ALLOWED_ORIGINS 
+  ? process.env.ALLOWED_ORIGINS.split(',') 
+  : ['http://localhost:5173']; // Default Vite dev server port
+
+app.use(cors({
+  origin: function(origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy: Not allowed by CORS'));
+    }
+    return callback(null, true);
+  },
+  credentials: true // Allow credentials (cookies, authorization headers, etc)
+}));
+
+// Other middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Serve uploaded files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Log requests in development mode
 if (process.env.NODE_ENV === 'development') {
@@ -55,8 +72,16 @@ app.use((err, req, res, next) => {
 });
 
 // Connect to MongoDB and start server
+const mongoUri = process.env.MONGODB_URI;
+if (!mongoUri) {
+  console.error(
+    'MongoDB URI is not set. Please define MONGODB_URI in your .env file.'
+  );
+  process.exit(1);
+}
+
 mongoose
-  .connect(process.env.MONGODB_URI)
+  .connect(mongoUri)
   .then(() => {
     console.log('Connected to MongoDB');
     app.listen(PORT, () => {
